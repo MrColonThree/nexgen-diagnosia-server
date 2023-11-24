@@ -12,9 +12,7 @@ const port = process.env.PORT || 7000;
 app.use(express.json());
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173/",
-    ],
+    origin: ["http://localhost:5173"],
     credentials: true,
   })
 );
@@ -48,7 +46,13 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
 
-  
+    const userCollection = client.db("nexgenDB").collection("users");
+    // user related api
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      const result = await userCollection.insertOne(user);
+      res.send(result);
+    });
 
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -73,7 +77,6 @@ async function run() {
         })
         .send({ status: true });
     });
-
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
