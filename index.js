@@ -50,6 +50,7 @@ async function run() {
     const districtCollection = client.db("nexgenDB").collection("districts");
     const upazilaCollection = client.db("nexgenDB").collection("upazilas");
     const userCollection = client.db("nexgenDB").collection("users");
+    const bannerCollection = client.db("nexgenDB").collection("banners");
 
     // to get division
     app.get("/divisions", async (req, res) => {
@@ -130,6 +131,16 @@ async function run() {
       }
       next();
     };
+
+    // banner data
+    app.get("/banners", async (req, res) => {
+      const result = await bannerCollection.find().toArray();
+      res.send(result);
+    });
+    app.get("/active-banner", async (req, res) => {
+      const result = await bannerCollection.findOne({ isActive: true });
+      res.send(result);
+    });
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
