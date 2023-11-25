@@ -12,7 +12,7 @@ const port = process.env.PORT || 7000;
 app.use(express.json());
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
@@ -46,14 +46,90 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
 
+    const divisionCollection = client.db("nexgenDB").collection("divisions");
+    const districtCollection = client.db("nexgenDB").collection("districts");
+    const upazilaCollection = client.db("nexgenDB").collection("upazilas");
     const userCollection = client.db("nexgenDB").collection("users");
+
+    // to get division
+    app.get("/divisions", async (req, res) => {
+      const divisions = await divisionCollection.find().toArray();
+      res.send(divisions);
+    });
+    // to get district
+    app.get("/districts", async (req, res) => {
+      const districts = await districtCollection.find().toArray();
+      res.send(districts);
+    });
+    // to get upazila
+    app.get("/upazilas", async (req, res) => {
+      const upazilas = await upazilaCollection.find().toArray();
+      res.send(upazilas);
+    });
+
     // user related api
     app.post("/users", async (req, res) => {
       const user = req.body;
+      const query = { email: user.email };
+      const isExist = await userCollection.findOne(query);
+      if (isExist) {
+        return;
+      }
       const result = await userCollection.insertOne(user);
       res.send(result);
     });
+    // to get specific user data
+    app.get("/user", async (req, res) => {
+      const userEmail = req.query.email;
+      const query = { email: userEmail };
+      const result = await userCollection.findOne(query);
+      res.send(result);
+    });
+    // tu update userData
+    app.put("/users", verifyToken, async (req, res) => {
+      const user = req.body;
+      console.log(user);
+      const filter = { email: user.email };
+      const updatedUser = {
+        $set: {
+          name: user.name,
+          email: user.email,
+          photoURL: user.photoURL,
+          bloodGroup: user.bloodGroup,
+          division: user.division,
+          district: user.district,
+          upazila: user.upazila,
+        },
+      };
+      const result = await userCollection.updateOne(filter, updatedUser);
+      res.send(result);
+    });
 
+    // admin or not
+    app.get("/users/admin/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      // if (email !== req.decoded.email) {
+      //   return res.status(403).send({ message: "forbidden access" });
+      // }
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      let admin = false;
+      if (user) {
+        admin = user?.role === "admin";
+      }
+      res.send({ admin });
+    });
+    // verify admin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isAdmin = user?.role === "admin";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "forbidden access " });
+      }
+      next();
+    };
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
