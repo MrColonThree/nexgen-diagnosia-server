@@ -3,7 +3,7 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const cookieParser = require("cookie-parser");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 7000;
@@ -79,6 +79,11 @@ async function run() {
       const result = await userCollection.insertOne(user);
       res.send(result);
     });
+    // to get all users
+    app.get("/users", async (req, res) => {
+      const result = await userCollection.find().toArray();
+      res.send(result);
+    });
     // to get specific user data
     app.get("/user", async (req, res) => {
       const userEmail = req.query.email;
@@ -139,6 +144,15 @@ async function run() {
     });
     app.get("/active-banner", async (req, res) => {
       const result = await bannerCollection.findOne({ isActive: true });
+      res.send(result);
+    });
+    app.patch("/banner/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      await bannerCollection.updateMany({}, { $set: { isActive: false } });
+      const result = await bannerCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { isActive: true } }
+      );
       res.send(result);
     });
     app.post("/jwt", async (req, res) => {
