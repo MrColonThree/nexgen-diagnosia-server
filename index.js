@@ -51,6 +51,7 @@ async function run() {
     const upazilaCollection = client.db("nexgenDB").collection("upazilas");
     const userCollection = client.db("nexgenDB").collection("users");
     const bannerCollection = client.db("nexgenDB").collection("banners");
+    const footerDataCollection = client.db("nexgenDB").collection("footerData");
 
     // to get division
     app.get("/divisions", async (req, res) => {
@@ -110,7 +111,32 @@ async function run() {
       const result = await userCollection.updateOne(filter, updatedUser);
       res.send(result);
     });
-
+    // to update specific user's role
+    app.patch("/user-role/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedUser = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await userCollection.updateOne(filter, updatedUser);
+      res.send(result);
+    });
+    // to change specific user's status
+    app.patch("/user-status/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const user = await userCollection.findOne(filter);
+      let updatedStatus = user.status === "active" ? "blocked" : "active";
+      const updatedUser = {
+        $set: {
+          status: updatedStatus,
+        },
+      };
+      const result = await userCollection.updateOne(filter, updatedUser);
+      res.send(result);
+    });
     // admin or not
     app.get("/users/admin/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
@@ -136,7 +162,12 @@ async function run() {
       }
       next();
     };
-
+    // to post a banner
+    app.post("/banners", async (req, res) => {
+      const banner = req.body;
+      const result = await bannerCollection.insertOne(banner);
+      res.send(result);
+    });
     // banner data
     app.get("/banners", async (req, res) => {
       const result = await bannerCollection.find().toArray();
@@ -153,6 +184,11 @@ async function run() {
         { _id: new ObjectId(id) },
         { $set: { isActive: true } }
       );
+      res.send(result);
+    });
+    // to get footer data
+    app.get("/footer", async (req, res) => {
+      const result = await footerDataCollection.find().toArray();
       res.send(result);
     });
     app.post("/jwt", async (req, res) => {
