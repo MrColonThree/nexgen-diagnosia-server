@@ -42,7 +42,11 @@ async function run() {
     const blogCollection = client.db("nexgenDB").collection("blogs");
     const aboutCollection = client.db("nexgenDB").collection("about");
     const testCollection = client.db("nexgenDB").collection("tests");
+    const promotionCollection = client.db("nexgenDB").collection("promotions");
     const tipCollection = client.db("nexgenDB").collection("tips");
+    const testimonialCollection = client
+      .db("nexgenDB")
+      .collection("testimonials");
     const appointmentCollection = client
       .db("nexgenDB")
       .collection("appointments");
@@ -106,7 +110,7 @@ async function run() {
     });
     // to get specific user data
     app.get("/user", async (req, res) => {
-      const userEmail = req.query.email;
+      const userEmail = req?.query?.email;
       const query = { email: userEmail };
       const result = await userCollection.findOne(query);
       res.send(result);
@@ -162,21 +166,26 @@ async function run() {
       }
     );
     // admin or not
-    app.get("/users/admin/:email", verifyToken, async (req, res) => {
-      const email = req.params.email;
-      if (email !== req.user?.email) {
-        return res.status(403).send({ message: "forbidden access" });
+    app.get(
+      "/users/admin/:email",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const email = req.params.email;
+        if (email !== req.user?.email) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+        const query = { email: email };
+        const user = await userCollection.findOne(query);
+        let admin = false;
+        if (user) {
+          admin = user?.role === "admin";
+        }
+        res.send({ admin });
       }
-      const query = { email: email };
-      const user = await userCollection.findOne(query);
-      let admin = false;
-      if (user) {
-        admin = user?.role === "admin";
-      }
-      res.send({ admin });
-    });
+    );
     // to add test
-    app.post("/tests", async (req, res) => {
+    app.post("/tests", verifyToken, verifyAdmin, async (req, res) => {
       const test = req.body;
       const result = await testCollection.insertOne(test);
       res.send(result);
@@ -192,7 +201,7 @@ async function run() {
       res.send(result);
     });
     // to update test
-    app.put("/tests", async (req, res) => {
+    app.put("/tests", verifyAdmin, verifyToken, async (req, res) => {
       const test = req.body;
       const filter = { _id: new ObjectId(test._id) };
       const updatedTest = {
@@ -212,7 +221,7 @@ async function run() {
       res.send(result);
     });
     // to delete test
-    app.delete("/test/:id", async (req, res) => {
+    app.delete("/test/:id", verifyAdmin, verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await testCollection.deleteOne(query);
@@ -236,7 +245,7 @@ async function run() {
       res.send(result);
     });
     // to post test as appointments
-    app.post("/appointments", async (req, res) => {
+    app.post("/appointments", verifyToken, async (req, res) => {
       const paidTest = req.body;
       const filter = { testName: paidTest.testName };
       const updateTest = {
@@ -292,6 +301,16 @@ async function run() {
         { _id: new ObjectId(id) },
         { $set: { isActive: true } }
       );
+      res.send(result);
+    });
+    // to get promotions data
+    app.get("/promotions", async (req, res) => {
+      const result = await promotionCollection.find().toArray();
+      res.send(result);
+    });
+    // to get testimonials
+    app.get("/testimonials", async (req, res) => {
+      const result = await testimonialCollection.find().toArray();
       res.send(result);
     });
     // to get health and tips section data
