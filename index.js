@@ -1,4 +1,6 @@
 const express = require("express");
+const cloudinary = require("cloudinary").v2;
+const formData = require("express-form-data");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
@@ -18,7 +20,22 @@ app.use(
   })
 );
 app.use(cookieParser());
+app.use(formData.parse());
 
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+app.post("/upload", async (req, res) => {
+  const { file } = req.files;
+  const result = await cloudinary.uploader.upload(file.path, {
+    resource_type: "raw",
+    access_mode: "public",
+  });
+  res.json({ url: result.secure_url, success: true });
+});
 const uri = `mongodb+srv://${process.env.USER_DB}:${process.env.PASS_DB}@cluster0.edvzxqj.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
@@ -44,6 +61,7 @@ async function run() {
     const testCollection = client.db("nexgenDB").collection("tests");
     const promotionCollection = client.db("nexgenDB").collection("promotions");
     const tipCollection = client.db("nexgenDB").collection("tips");
+    const reportCollection = client.db("nexgenDB").collection("reports");
     const testimonialCollection = client
       .db("nexgenDB")
       .collection("testimonials");
@@ -104,7 +122,7 @@ async function run() {
       res.send(result);
     });
     // to get all users
-    app.get("/users", verifyToken, async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
@@ -273,10 +291,33 @@ async function run() {
       res.send(result);
     });
     // to delete a specific appointments
-    app.delete("/appointments/:id", async (req, res) => {
+    app.delete("/appointments/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await appointmentCollection.deleteOne(query);
+      res.send(result);
+    });
+    // to post report
+    app.post("/reports", verifyToken, verifyAdmin, async (req, res) => {
+      const report = req.body;
+      const id = req.body.id;
+      const updateData = await appointmentCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { status: "delivered" } }
+      );
+      const result = await reportCollection.insertOne(report);
+      console.log(result);
+      res.send(result);
+    });
+    // to post report
+    app.get("/reports", async (req, res) => {
+      const email = req.query.email;
+      let query = {};
+      if (email) {
+        query.email = email;
+      }
+      const result = await reportCollection.find(query).toArray();
+      console.log(result);
       res.send(result);
     });
     // to post a banner
@@ -301,6 +342,13 @@ async function run() {
         { _id: new ObjectId(id) },
         { $set: { isActive: true } }
       );
+      res.send(result);
+    });
+    // to delete a banner
+    app.delete("/banner/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await bannerCollection.deleteOne(query);
       res.send(result);
     });
     // to get promotions data
