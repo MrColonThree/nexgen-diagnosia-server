@@ -219,9 +219,11 @@ async function run() {
       res.send(result);
     });
     // to update test
-    app.put("/tests", verifyAdmin, verifyToken, async (req, res) => {
+    app.put("/tests", verifyToken, verifyAdmin, async (req, res) => {
       const test = req.body;
+      console.log(test);
       const filter = { _id: new ObjectId(test._id) };
+      console.log(filter);
       const updatedTest = {
         $set: {
           testName: test.testName,
@@ -239,7 +241,7 @@ async function run() {
       res.send(result);
     });
     // to delete test
-    app.delete("/test/:id", verifyAdmin, verifyToken, async (req, res) => {
+    app.delete("/test/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await testCollection.deleteOne(query);
@@ -265,6 +267,7 @@ async function run() {
     // to post test as appointments
     app.post("/appointments", verifyToken, async (req, res) => {
       const paidTest = req.body;
+      console.log(paidTest);
       const filter = { testName: paidTest.testName };
       const updateTest = {
         $inc: {
